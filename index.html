@@ -14,78 +14,148 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="shortcut icon" type="image/x-icon" href="./visuals/blocks/b0001.svg" />
     <link rel="stylesheet" href="style.css" type="text/css"/>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
     <script type="text/javascript" src="5b.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.3.0/dist/pixi-filters.js"></script>
+
+    <style>
+
+        #config-sidebar {
+            position: fixed;
+            right: -300px; 
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: #b38762;
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: sans-serif;
+            transition: right 0.3s ease;
+            z-index: 1000;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+            overflow-y: auto;
+        }
+
+        #config-sidebar.active {
+            right: 0; 
+        }
+
+        .slider-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+    </style>
 </head>
 <body style="overflow:hidden;">
+
     <details style="position: fixed; left: 10px; top: 10px; z-index: 1000; background: #b38762; color: white; padding: 10px; border-radius: 5px; font-family: sans-serif; cursor: pointer;">
         <summary style="font-weight: bold; list-style: none;">filters</summary>
         <ul id="filter-list" style="margin-top: 10px; padding-left: 15px; border-top: 1px solid white;">
-            <li style="margin: 5px 0;"><a href="#" style="color: white; text-decoration: none;">crisp like uh zelo.dev</a></li>
-            <li style="margin: 5px 0;"><a href="#" style="color: white; text-decoration: none;">hmmm second filter</a></li>
-            </ul>
+            <li style="margin: 5px 0;"><a href="#" data-script="filter1.js" data-func="applyFilter1" style="color: white; text-decoration: none;">Crisp Zelo Dither</a></li>
+            <li style="margin: 5px 0;"><a href="#" data-script="allfilter.js" data-func="applyAllFilters" style="color: white; text-decoration: none;">Pixi Filter Collection</a></li>
+        </ul>
     </details>
+
+    <div id="config-sidebar">
+        <h3 id="sidebar-title" style="margin-top: 0; border-bottom: 2px solid white; padding-bottom: 10px;">Settings</h3>
+        <div id="sidebar-controls"></div>
+    </div>
 
     <div id="center">
         <div id="hide-contenteditable"><canvas width="960" height="540" id="cnv" contenteditable="false"></canvas></div>
         <p class="bottomtext">An HTML5 port of Cary Huang's <a href="https://bfdi.tv/5b/">BFDIA 5b</a>. Explore is powered by <a href="https://5beam.zelo.dev/">Zelo101's 5beam</a>.</p>
     </div>
 
-   <script>
+    <script>
         const filterListItems = document.querySelectorAll('#filter-list li a');
-        let currentActiveFilter = null;
+        const sidebar = document.getElementById('config-sidebar');
+        const sidebarControls = document.getElementById('sidebar-controls');
+        const sidebarTitle = document.getElementById('sidebar-title');
+
+        let currentActiveFunc = null;
         let pixiApp = null;
         let pixiSprite = null;
+
         function initPixiOverlay() {
             if (pixiApp) return;
             const targetCanvas = document.getElementById('cnv');
+
             pixiApp = new PIXI.Application({
                 width: targetCanvas.width,
                 height: targetCanvas.height,
                 backgroundAlpha: 0, 
             });
+
             pixiApp.view.style.position = 'absolute';
             pixiApp.view.style.left = targetCanvas.offsetLeft + 'px';
             pixiApp.view.style.top = targetCanvas.offsetTop + 'px';
             pixiApp.view.style.pointerEvents = 'none'; 
             pixiApp.view.style.zIndex = '999';
+
             targetCanvas.parentNode.insertBefore(pixiApp.view, targetCanvas.nextSibling);
+
             const baseTexture = new PIXI.BaseTexture(targetCanvas);
             const texture = new PIXI.Texture(baseTexture);
             pixiSprite = new PIXI.Sprite(texture);
             pixiApp.stage.addChild(pixiSprite);
+
             pixiApp.ticker.add(() => baseTexture.update());
         }
-        function toggleFilter(filterNumber, linkElement) {
-            if (currentActiveFilter === filterNumber) {
+
+        function toggleFilter(funcName, linkElement) {
+
+            if (currentActiveFunc === funcName) {
+
+                if (pixiSprite.filters && pixiSprite.filters.destroy) {
+                    pixiSprite.filters.destroy();
+                }
                 pixiSprite.filters = [];
                 document.getElementById('cnv').style.opacity = '1'; 
                 pixiApp.view.style.display = 'none';                
-                currentActiveFilter = null;
-                linkElement.style.color = 'white';                  
+                currentActiveFunc = null;
+                linkElement.style.color = 'white';  
+
+                sidebar.classList.remove('active');
+                sidebarControls.innerHTML = '';
                 return;
             }
+
             filterListItems.forEach(a => a.style.color = 'white');
             linkElement.style.color = '#ffcc00';
-            currentActiveFilter = filterNumber;
+
+            currentActiveFunc = funcName;
+
             initPixiOverlay();
             document.getElementById('cnv').style.opacity = '0'; 
             pixiApp.view.style.display = 'block';               
-            pixiSprite.filters = window[`applyFilter${filterNumber}`]();
+
+            sidebarControls.innerHTML = '';
+            sidebarTitle.innerText = linkElement.innerText; 
+            sidebar.classList.add('active'); 
+
+            pixiSprite.filters = window[funcName](sidebarControls, pixiSprite);
         }
-        filterListItems.forEach((link, index) => {
-            const filterNumber = index + 1;
-            const scriptPath = `filter/filter${filterNumber}.js`;
+
+        filterListItems.forEach((link) => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (!window[`applyFilter${filterNumber}`]) {
+
+                const scriptName = link.dataset.script;
+                const funcName = link.dataset.func;
+                const scriptPath = `filter/${scriptName}`;
+
+                if (!window[funcName]) {
                     const script = document.createElement('script');
                     script.src = scriptPath; 
-                    script.onload = () => toggleFilter(filterNumber, link);
+                    script.onload = () => toggleFilter(funcName, link);
+                    script.onerror = () => alert(`Oops! Couldn't find ${scriptPath}`);
                     document.body.appendChild(script);
                 } else {
-                    toggleFilter(filterNumber, link);
+                    toggleFilter(funcName, link);
                 }
             });
         });
