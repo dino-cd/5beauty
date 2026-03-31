@@ -18,17 +18,7 @@ window.applyAllFilters = function(uiContainer, sprite) {
         ]},
         godray: { name: "Godray", cls: "GodrayFilter", anim: f => f.time += 0.01, sliders: [
             { id: "angle", label: "Angle", min: -30, max: 30, step: 1, val: 30 },
-            { id: "gain", label: "Gain", min: 0, max: 1, step: 0.01, val: 0.5 },
-            { id: "lacunarity", label: "Lacunarity", min: 0, max: 5, step: 0.1, val: 2.5 }
-        ]},
-        oldfilm: { name: "Old Film", cls: "OldFilmFilter", anim: f => f.seed = Math.random(), sliders: [
-            { id: "sepia", label: "Sepia", min: 0, max: 1, step: 0.01, val: 0.3 },
-            { id: "noise", label: "Noise", min: 0, max: 1, step: 0.01, val: 0.3 },
-            { id: "scratch", label: "Scratches", min: 0, max: 1, step: 0.01, val: 0.5 }
-        ]},
-        shockwave: { name: "Shockwave", cls: "ShockwaveFilter", anim: f => f.time = (f.time + 0.02) % 2, sliders: [
-            { id: "amplitude", label: "Amplitude", min: 0, max: 100, step: 1, val: 30 },
-            { id: "wavelength", label: "Wavelength", min: 0, max: 300, step: 1, val: 160 }
+            { id: "gain", label: "Gain", min: 0, max: 1, step: 0.01, val: 0.5 }
         ]},
         pixelate: { name: "Pixelate", cls: "PixelateFilter", sliders: [
             { id: "size", label: "Block Size", min: 1, max: 50, step: 1, val: 10 }
@@ -44,29 +34,15 @@ window.applyAllFilters = function(uiContainer, sprite) {
             { id: "radius", label: "Radius", min: 0, max: 500, step: 1, val: 100 },
             { id: "strength", label: "Strength", min: -1, max: 1, step: 0.1, val: 1 }
         ]},
-        tiltshift: { name: "Tilt Shift", cls: "TiltShiftFilter", sliders: [
-            { id: "blur", label: "Blur", min: 0, max: 50, step: 1, val: 10 },
-            { id: "gradientBlur", label: "Gradient", min: 0, max: 2000, step: 10, val: 600 }
-        ]},
         twist: { name: "Twist", cls: "TwistFilter", sliders: [
             { id: "angle", label: "Angle", min: -10, max: 10, step: 0.1, val: 4 },
             { id: "radius", label: "Radius", min: 0, max: 1000, step: 10, val: 200 }
         ]},
-        zoomblur: { name: "Zoom Blur", cls: "ZoomBlurFilter", sliders: [
-            { id: "strength", label: "Strength", min: 0, max: 1, step: 0.01, val: 0.1 },
-            { id: "innerRadius", label: "Inner Rad", min: 0, max: 500, step: 1, val: 0 }
-        ]},
         outline: { name: "Outline", cls: "OutlineFilter", sliders: [
             { id: "thickness", label: "Thickness", min: 0, max: 20, step: 1, val: 2 }
         ]},
-        emboss: { name: "Emboss", cls: "EmbossFilter", sliders: [
-            { id: "strength", label: "Strength", min: 0, max: 20, step: 0.5, val: 5 }
-        ]},
         blur: { name: "Standard Blur", cls: "BlurFilter", sliders: [
             { id: "blur", label: "Blur", min: 0, max: 20, step: 0.5, val: 4 }
-        ]},
-        noise: { name: "Static Noise", cls: "NoiseFilter", sliders: [
-            { id: "noise", label: "Noise", min: 0, max: 1, step: 0.01, val: 0.5 }
         ]}
     };
 
@@ -86,9 +62,7 @@ window.applyAllFilters = function(uiContainer, sprite) {
             <div id="dynamic-sliders"></div> 
         `;
 
-        document.getElementById('effect-select').addEventListener('change', (e) => {
-            applySpecificEffect(e.target.value);
-        });
+        document.getElementById('effect-select').addEventListener('change', (e) => applySpecificEffect(e.target.value));
     }
 
     let activeAnimation = null;
@@ -107,44 +81,51 @@ window.applyAllFilters = function(uiContainer, sprite) {
 
         const config = filterRegistry[key];
 
-        const FilterClass = (PIXI.filters && PIXI.filters[config.cls]) || PIXI[config.cls];
+        let FilterClass = null;
+        if (typeof PIXI.filters !== 'undefined' && PIXI.filters[config.cls]) {
+            FilterClass = PIXI.filters[config.cls];
+        } else if (typeof PIXI !== 'undefined' && PIXI[config.cls]) {
+            FilterClass = PIXI[config.cls];
+        }
 
         if (!FilterClass) {
-            sliderDiv.innerHTML = `<p style="color:#ffcccc; font-size:12px;">Error: ${config.cls} failed to load from the library.</p>`;
+            sliderDiv.innerHTML = `<p style="color:#ffcccc; font-size:12px; margin-top: 10px;">⚠️ Please wait a moment for the filter library to finish downloading, then try selecting it again.</p>`;
             return;
         }
 
-        currentActiveFilter = new FilterClass();
-        sprite.filters = [currentActiveFilter];
+        try {
+            currentActiveFilter = new FilterClass();
+            sprite.filters = [currentActiveFilter];
 
-        if (config.anim) {
-            activeAnimation = () => config.anim(currentActiveFilter);
-            masterTicker.add(activeAnimation);
-        }
+            if (config.anim) {
+                activeAnimation = () => config.anim(currentActiveFilter);
+                masterTicker.add(activeAnimation);
+            }
 
-        let htmlBlocks = '';
-        config.sliders.forEach(slider => {
-            currentActiveFilter[slider.id] = slider.val; 
-
-            htmlBlocks += `
-                <div class="slider-group">
-                    <label>${slider.label}: <span id="v-${slider.id}">${slider.val}</span></label>
-                    <input type="range" id="s-${slider.id}" min="${slider.min}" max="${slider.max}" step="${slider.step}" value="${slider.val}">
-                </div>
-            `;
-        });
-
-        sliderDiv.innerHTML = htmlBlocks;
-
-        config.sliders.forEach(slider => {
-            document.getElementById(`s-${slider.id}`).addEventListener('input', (e) => {
-                const val = parseFloat(e.target.value);
-                currentActiveFilter[slider.id] = val; 
-
-                document.getElementById(`v-${slider.id}`).innerText = val; 
-
+            let htmlBlocks = '';
+            config.sliders.forEach(slider => {
+                currentActiveFilter[slider.id] = slider.val; 
+                htmlBlocks += `
+                    <div class="slider-group">
+                        <label>${slider.label}: <span id="v-${slider.id}">${slider.val}</span></label>
+                        <input type="range" id="s-${slider.id}" min="${slider.min}" max="${slider.max}" step="${slider.step}" value="${slider.val}">
+                    </div>
+                `;
             });
-        });
+
+            sliderDiv.innerHTML = htmlBlocks;
+
+            config.sliders.forEach(slider => {
+                document.getElementById(`s-${slider.id}`).addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    currentActiveFilter[slider.id] = val; 
+                    document.getElementById(`v-${slider.id}`).innerText = val; 
+                });
+            });
+        } catch (error) {
+            console.error(error);
+            sliderDiv.innerHTML = `<p style="color:#ffcccc; font-size:12px;">Error initializing filter.</p>`;
+        }
     }
 
     renderDropdown();
