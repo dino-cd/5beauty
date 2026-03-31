@@ -1,4 +1,3 @@
-// qq
 window.applyFilter1 = function() {
     const customFragmentShader = `
         precision mediump float;
@@ -28,9 +27,54 @@ window.applyFilter1 = function() {
     `;
     const retroFilter = new PIXI.Filter(null, customFragmentShader, {
         uDimensions: [960, 540], 
-        uPixelSize: 7.0,
-        uColors: 18.0,
-        uSpread: 0.05
+        uPixelSize: 7.0,     
+        uColors: 18.0,       
+        uSpread: 0.05        
+    });
+    document.querySelectorAll('.filter-ui-container').forEach(el => el.remove());
+    const ui = document.createElement('div');
+    ui.className = 'filter-ui-container'; 
+    ui.style.position = 'fixed';
+    ui.style.bottom = '20px';
+    ui.style.left = '50%';
+    ui.style.transform = 'translateX(-50%)';
+    ui.style.backgroundColor = '#b38762'; 
+    ui.style.color = 'white';
+    ui.style.padding = '10px 20px';
+    ui.style.borderRadius = '5px';
+    ui.style.display = 'flex';
+    ui.style.gap = '25px';
+    ui.style.fontFamily = 'sans-serif';
+    ui.style.zIndex = '1000';
+    ui.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+            <label style="font-size: 14px;">Pixel Size: <span id="val-px">7</span></label>
+            <input type="range" id="slider-px" min="1" max="25" step="1" value="7" style="cursor: pointer;">
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+            <label style="font-size: 14px;">Colors: <span id="val-col">18</span></label>
+            <input type="range" id="slider-col" min="2" max="64" step="1" value="18" style="cursor: pointer;">
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+            <label style="font-size: 14px;">Dither: <span id="val-dith">0.05</span></label>
+            <input type="range" id="slider-dith" min="0" max="0.5" step="0.01" value="0.05" style="cursor: pointer;">
+        </div>
+    `;
+    document.body.appendChild(ui);
+    document.getElementById('slider-px').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        retroFilter.uniforms.uPixelSize = val;
+        document.getElementById('val-px').innerText = val;
+    });
+    document.getElementById('slider-col').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        retroFilter.uniforms.uColors = val;
+        document.getElementById('val-col').innerText = val;
+    });
+    document.getElementById('slider-dith').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        retroFilter.uniforms.uSpread = val;
+        document.getElementById('val-dith').innerText = val;
     });
     return [retroFilter];
 };
