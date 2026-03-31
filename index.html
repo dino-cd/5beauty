@@ -4,23 +4,14 @@
     <title>HTML5b - Battle for Dream Island</title>
     <meta name="description" content="fork of html5b that contains several filter configurations."/>
     <meta charset="utf-8"/>
-    <meta name="author" content="coppersalts">
-    <meta property="og:title" content="5beauty">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://dino-cd.github.io/5beauty/">
-    <meta property="og:image" content="https://dino-cd.github.io/5beauty/visuals/bg/bg0002.png">
-    <meta property="og:description" content="5b but pretty!.">
-    <meta name="theme-color" content="#c92b20">
-    <meta name="twitter:card" content="summary_large_image">
-    <link rel="shortcut icon" type="image/x-icon" href="./visuals/blocks/b0001.svg" />
+
     <link rel="stylesheet" href="style.css" type="text/css"/>
     <script type="text/javascript" src="5b.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.3.0/dist/pixi-filters.js"></script>
+    <script src="https://unpkg.com/pixi-filters@5.3.0/dist/pixi-filters.js"></script>
 
     <style>
-
         #config-sidebar {
             position: fixed;
             right: -300px; 
@@ -37,26 +28,17 @@
             box-shadow: -5px 0 15px rgba(0,0,0,0.3);
             overflow-y: auto;
         }
-
-        #config-sidebar.active {
-            right: 0; 
-        }
-
-        .slider-group {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
+        #config-sidebar.active { right: 0; }
+        .slider-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
     </style>
 </head>
 <body style="overflow:hidden;">
 
-    <details style="position: fixed; left: 10px; top: 10px; z-index: 1000; background: #b38762; color: white; padding: 10px; border-radius: 5px; font-family: sans-serif; cursor: pointer;">
+    <details id="filter-menu" style="position: fixed; left: 10px; top: 10px; z-index: 1000; background: #b38762; color: white; padding: 10px; border-radius: 5px; font-family: sans-serif; cursor: pointer;">
         <summary style="font-weight: bold; list-style: none;">filters</summary>
         <ul id="filter-list" style="margin-top: 10px; padding-left: 15px; border-top: 1px solid white;">
-            <li style="margin: 5px 0;"><a href="#" data-script="filter1.js" data-func="applyFilter1" style="color: white; text-decoration: none;">Crisp Zelo Dither</a></li>
-            <li style="margin: 5px 0;"><a href="#" data-script="allfilter.js" data-func="applyAllFilters" style="color: white; text-decoration: none;">Pixi Filter Collection</a></li>
+            <li style="margin: 5px 0;"><a href="#" data-script="filter1.js" data-func="applyFilter1" data-sidebar="false" style="color: white; text-decoration: none;">Crisp Zelo Dither</a></li>
+            <li style="margin: 5px 0;"><a href="#" data-script="allfilter.js" data-func="applyAllFilters" data-sidebar="true" style="color: white; text-decoration: none;">Pixi Filter Collection</a></li>
         </ul>
     </details>
 
@@ -67,7 +49,7 @@
 
     <div id="center">
         <div id="hide-contenteditable"><canvas width="960" height="540" id="cnv" contenteditable="false"></canvas></div>
-        <p class="bottomtext">An HTML5 port of Cary Huang's <a href="https://bfdi.tv/5b/">BFDIA 5b</a>. Explore is powered by <a href="https://5beam.zelo.dev/">Zelo101's 5beam</a>.</p>
+        <p class="bottomtext">An HTML5 port of Cary Huang's BFDIA 5b.</p>
     </div>
 
     <script>
@@ -75,6 +57,7 @@
         const sidebar = document.getElementById('config-sidebar');
         const sidebarControls = document.getElementById('sidebar-controls');
         const sidebarTitle = document.getElementById('sidebar-title');
+        const filterMenu = document.getElementById('filter-menu');
 
         let currentActiveFunc = null;
         let pixiApp = null;
@@ -109,10 +92,7 @@
         function toggleFilter(funcName, linkElement) {
 
             if (currentActiveFunc === funcName) {
-
-                if (pixiSprite.filters && pixiSprite.filters.destroy) {
-                    pixiSprite.filters.destroy();
-                }
+                if (pixiSprite.filters && pixiSprite.filters.destroy) pixiSprite.filters.destroy();
                 pixiSprite.filters = [];
                 document.getElementById('cnv').style.opacity = '1'; 
                 pixiApp.view.style.display = 'none';                
@@ -120,44 +100,56 @@
                 linkElement.style.color = 'white';  
 
                 sidebar.classList.remove('active');
-                sidebarControls.innerHTML = '';
+                document.querySelectorAll('.filter-ui-container').forEach(el => el.remove()); 
+
                 return;
             }
 
             filterListItems.forEach(a => a.style.color = 'white');
             linkElement.style.color = '#ffcc00';
-
             currentActiveFunc = funcName;
 
             initPixiOverlay();
             document.getElementById('cnv').style.opacity = '0'; 
             pixiApp.view.style.display = 'block';               
 
+            document.querySelectorAll('.filter-ui-container').forEach(el => el.remove()); 
             sidebarControls.innerHTML = '';
-            sidebarTitle.innerText = linkElement.innerText; 
-            sidebar.classList.add('active'); 
 
-            pixiSprite.filters = window[funcName](sidebarControls, pixiSprite);
+            const useSidebar = linkElement.dataset.sidebar === "true";
+
+            if (useSidebar) {
+                sidebarTitle.innerText = linkElement.innerText; 
+                sidebar.classList.add('active'); 
+                pixiSprite.filters = window[funcName](sidebarControls, pixiSprite);
+            } else {
+                sidebar.classList.remove('active'); 
+                pixiSprite.filters = window[funcName](); 
+
+            }
         }
 
         filterListItems.forEach((link) => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-
                 const scriptName = link.dataset.script;
                 const funcName = link.dataset.func;
-                const scriptPath = `filter/${scriptName}`;
 
                 if (!window[funcName]) {
                     const script = document.createElement('script');
-                    script.src = scriptPath; 
+                    script.src = `filter/${scriptName}`; 
                     script.onload = () => toggleFilter(funcName, link);
-                    script.onerror = () => alert(`Oops! Couldn't find ${scriptPath}`);
                     document.body.appendChild(script);
                 } else {
                     toggleFilter(funcName, link);
                 }
             });
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (sidebar.classList.contains('active') && !sidebar.contains(e.target) && !filterMenu.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
         });
     </script>
 </body>
