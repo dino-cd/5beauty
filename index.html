@@ -1,32 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<title>HTML5b - Battle for Dream Island</title>
-	<meta name="description" content="fork of html5b that contains several filter configurations."/>
-	<meta charset="utf-8"/>
-	<meta name="author" content="coppersalts">
-	<meta property="og:title" content="5beauty">
-	<meta property="og:type" content="website">
-	<meta property="og:url" content="https://dino-cd.github.io/5beauty/">
-	<meta property="og:image" content="https://dino-cd.github.io/5beauty/visuals/bg/bg0002.png">
-	<meta property="og:description" content="5b but pretty!.">
-	<meta name="theme-color" content="#c92b20">
-	<meta name="twitter:card" content="summary_large_image">
-	<link rel="shortcut icon" type="image/x-icon" href="./visuals/blocks/b0001.svg" />
-	<link rel="stylesheet" href="style.css" type="text/css"/>
-	<script type="text/javascript" src="5b.js"></script>
+    <title>HTML5b - Battle for Dream Island</title>
+    <meta name="description" content="fork of html5b that contains several filter configurations."/>
+    <meta charset="utf-8"/>
+    <meta name="author" content="coppersalts">
+    <meta property="og:title" content="5beauty">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://dino-cd.github.io/5beauty/">
+    <meta property="og:image" content="https://dino-cd.github.io/5beauty/visuals/bg/bg0002.png">
+    <meta property="og:description" content="5b but pretty!.">
+    <meta name="theme-color" content="#c92b20">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="shortcut icon" type="image/x-icon" href="./visuals/blocks/b0001.svg" />
+    <link rel="stylesheet" href="style.css" type="text/css"/>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <script type="text/javascript" src="5b.js"></script>
 </head>
 <body style="overflow:hidden;">
-	<details style="position: fixed; left: 10px; top: 10px; z-index: 1000; background: #b38762; color: white; padding: 10px; border-radius: 5px; font-family: sans-serif; cursor: pointer;">
-  <summary style="font-weight: bold; list-style: none;">filters</summary>
-  <ul style="margin-top: 10px; padding-left: 15px; border-top: 1px solid white;">
-    <li style="margin: 5px 0;"><a href="#" style="color: white; text-decoration: none;">cirsp like uh zelo.dev</a></li>
-	  <li style="margin: 5px 0;"><a href="#" style="color: white; text-decoration: none;">hmmm second filter</a></li>
-  </ul>
-</details>
-<div id="center">
-	<div id="hide-contenteditable"><canvas width="960" height="540" id="cnv" contenteditable="false"></canvas></div>
-	<p class="bottomtext">An HTML5 port of Cary Huang's <a href="https://bfdi.tv/5b/">BFDIA 5b</a>. Explore is powered by <a href="https://5beam.zelo.dev/">Zelo101's 5beam</a>.</p>
-</div>
+    <details style="position: fixed; left: 10px; top: 10px; z-index: 1000; background: #b38762; color: white; padding: 10px; border-radius: 5px; font-family: sans-serif; cursor: pointer;">
+        <summary style="font-weight: bold; list-style: none;">filters</summary>
+        <ul id="filter-list" style="margin-top: 10px; padding-left: 15px; border-top: 1px solid white;">
+            <li style="margin: 5px 0;"><a href="#" style="color: white; text-decoration: none;">crisp like uh zelo.dev</a></li>
+            <li style="margin: 5px 0;"><a href="#" style="color: white; text-decoration: none;">hmmm second filter</a></li>
+            </ul>
+    </details>
+
+    <div id="center">
+        <div id="hide-contenteditable"><canvas width="960" height="540" id="cnv" contenteditable="false"></canvas></div>
+        <p class="bottomtext">An HTML5 port of Cary Huang's <a href="https://bfdi.tv/5b/">BFDIA 5b</a>. Explore is powered by <a href="https://5beam.zelo.dev/">Zelo101's 5beam</a>.</p>
+    </div>
+
+    <script>
+        const filterListItems = document.querySelectorAll('#filter-list li a');
+        let currentActiveFilter = null;
+        let pixiApp = null;
+        let pixiSprite = null;
+        function initPixiOverlay() {
+            if (pixiApp) return;
+            const targetCanvas = document.getElementById('cnv');
+            pixiApp = new PIXI.Application({
+                width: targetCanvas.width,
+                height: targetCanvas.height,
+                backgroundAlpha: 0,
+            });
+            pixiApp.view.style.position = 'absolute';
+            pixiApp.view.style.left = targetCanvas.offsetLeft + 'px';
+            pixiApp.view.style.top = targetCanvas.offsetTop + 'px';
+            pixiApp.view.style.pointerEvents = 'none'; 
+            pixiApp.view.style.zIndex = '999';
+
+            targetCanvas.parentNode.insertBefore(pixiApp.view, targetCanvas.nextSibling);
+            const baseTexture = new PIXI.BaseTexture(targetCanvas);
+            const texture = new PIXI.Texture(baseTexture);
+            pixiSprite = new PIXI.Sprite(texture);
+            pixiApp.stage.addChild(pixiSprite);
+            pixiApp.ticker.add(() => baseTexture.update());
+        }
+
+        function toggleFilter(filterNumber, linkElement) {
+            if (currentActiveFilter === filterNumber) {
+                pixiSprite.filters = [];
+                document.getElementById('cnv').style.opacity = '1'; 
+                pixiApp.view.style.display = 'none';
+                currentActiveFilter = null;
+                linkElement.style.color = 'white';
+                return;
+            }
+            filterListItems.forEach(a => a.style.color = 'white');
+            linkElement.style.color = '#ffcc00';
+
+            currentActiveFilter = filterNumber;
+            initPixiOverlay();
+            document.getElementById('cnv').style.opacity = '0';
+            pixiApp.view.style.display = 'block';
+            pixiSprite.filters = window[`applyFilter${filterNumber}`]();
+        }
+        filterListItems.forEach((link, index) => {
+            const filterNumber = index + 1;
+            const scriptName = `filter${filterNumber}.js`;
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!window[`applyFilter${filterNumber}`]) {
+                    console.log(`Loading ${scriptName}...`);
+                    const script = document.createElement('script');
+                    script.src = scriptName;
+                    script.onload = () => toggleFilter(filterNumber, link);
+                    script.onerror = () => alert(`Oops! Couldn't find ${scriptName}`);
+                    document.body.appendChild(script);
+                } else {
+                    toggleFilter(filterNumber, link);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
