@@ -83,7 +83,6 @@
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 if (!window[`applyFilter${filterNumber}`]) {
-                    console.log(`Loading ${scriptName}...`);
                     const script = document.createElement('script');
                     script.src = scriptName;
                     script.onload = () => toggleFilter(filterNumber, link);
